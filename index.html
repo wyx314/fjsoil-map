@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>福建省土壤数据地图</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; overflow: hidden; }
+        #map { width: 100%; height: 100vh; }
+
+        .header {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+            background: linear-gradient(135deg, #1a5276 0%, #2e86c1 50%, #48c9b0 100%);
+            padding: 12px 30px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.3);
+        }
+        .header h1 { color: #fff; font-size: 20px; font-weight: 600; letter-spacing: 2px; }
+        .header .subtitle { color: rgba(255,255,255,0.8); font-size: 12px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .coord-display {
+            color: rgba(255,255,255,0.9); font-size: 12px;
+            background: rgba(0,0,0,0.2); padding: 4px 12px;
+            border-radius: 15px; font-family: monospace;
+        }
+
+        .control-panel {
+            position: absolute; top: 70px; right: 15px; z-index: 1000;
+            background: rgba(255,255,255,0.96); border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 220px; overflow: hidden;
+        }
+        .panel-header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600;
+        }
+        .panel-body { padding: 12px; }
+        .layer-btn {
+            display: flex; align-items: center; gap: 10px;
+            width: 100%; padding: 10px 12px; margin: 4px 0;
+            border: 2px solid #e0e0e0; border-radius: 8px;
+            background: #fff; cursor: pointer; font-size: 13px; color: #444;
+            transition: all 0.25s ease;
+        }
+        .layer-btn:hover { border-color: #3498db; background: #ebf5fb; transform: translateX(-3px); }
+        .layer-btn.active { border-color: #2ecc71; background: #eafaf1; box-shadow: 0 2px 8px rgba(46,204,113,0.3); }
+        .layer-btn .btn-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .layer-btn .btn-text .title { font-weight: 600; font-size: 13px; }
+        .layer-btn .btn-text .desc { font-size: 11px; color: #888; margin-top: 2px; }
+
+        .legend-panel {
+            position: absolute; bottom: 30px; left: 15px; z-index: 1000;
+            background: rgba(255,255,255,0.96); border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); min-width: 200px; overflow: hidden;
+        }
+        .legend-header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: #fff; padding: 10px 14px; font-size: 13px; font-weight: 600;
+        }
+        .legend-body { padding: 12px 14px; }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; font-size: 12px; color: #444; }
+        .legend-color {
+            width: 24px; height: 16px; margin-right: 10px;
+            border: 1px solid rgba(0,0,0,0.15); border-radius: 3px;
+        }
+
+        .info-panel {
+            position: absolute; bottom: 30px; right: 15px; z-index: 1000;
+            background: rgba(255,255,255,0.96); border-radius: 12px; padding: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-width: 240px;
+            font-size: 12px; color: #666; line-height: 1.8;
+        }
+        .info-panel .info-title { font-weight: 600; color: #2c3e50; font-size: 13px; margin-bottom: 6px; }
+
+        .zoom-hint {
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+            z-index: 1500; background: rgba(52,152,219,0.9); color: #fff;
+            padding: 8px 20px; border-radius: 20px; font-size: 13px;
+            opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        }
+        .zoom-hint.show { opacity: 1; }
+
+        .leaflet-popup-content-wrapper { border-radius: 10px !important; box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important; }
+        .popup-content { font-size: 13px; line-height: 1.7; }
+        .popup-content .popup-title {
+            font-size: 15px; font-weight: 700; color: #1a5276;
+            border-bottom: 2px solid #3498db; padding-bottom: 6px; margin-bottom: 8px;
+        }
+        .popup-content .popup-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px dashed #eee; }
+        .popup-content .popup-row .label { color: #777; }
+        .popup-content .popup-row .value { font-weight: 600; color: #2c3e50; }
+
+        .github-badge {
+            position: absolute; top: 70px; left: 15px; z-index: 1000;
+            background: rgba(255,255,255,0.96); border-radius: 8px; padding: 8px 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15); font-size: 11px;
+        }
+        .github-badge a { color: #2c3e50; text-decoration: none; }
+        .github-badge a:hover { color: #3498db; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="zoom-hint" id="zoomHint">📍 已定位到数据区域</div>
+
+    <div class="header">
+        <div>
+            <h1>🗺️ 福建省土壤数据综合地图</h1>
+            <div class="subtitle">基于开源 GIS 技术的综合实验 · GitHub Pages 静态版</div>
+        </div>
+        <div class="header-right">
+            <div class="coord-display" id="coordDisplay">经度: --  纬度: --</div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="panel-header">📊 专题图切换</div>
+        <div class="panel-body">
+            <button class="layer-btn active" onclick="switchLayer('youjizhi')" id="btn-youjizhi">
+                <div class="btn-icon" style="background:#fef3e2;">🟤</div>
+                <div class="btn-text">
+                    <div class="title">土壤有机质分布</div>
+                    <div class="desc">缺乏 / 中等 / 丰富</div>
+                </div>
+            </button>
+            <button class="layer-btn" onclick="switchLayer('ph')" id="btn-ph">
+                <div class="btn-icon" style="background:#fde8e8;">🔴</div>
+                <div class="btn-text">
+                    <div class="title">土壤pH酸碱度</div>
+                    <div class="desc">强酸性 / 酸性 / 弱酸性 / 中性</div>
+                </div>
+            </button>
+            <button class="layer-btn" onclick="switchLayer('base')" id="btn-base">
+                <div class="btn-icon" style="background:#e8f8f5;">🟢</div>
+                <div class="btn-text">
+                    <div class="title">仅县区边界</div>
+                    <div class="desc">福建省行政区划</div>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <div class="legend-panel" id="legendPanel">
+        <div class="legend-header" id="legendTitle">📌 图例</div>
+        <div class="legend-body" id="legendBody"></div>
+    </div>
+
+    <div class="info-panel">
+        <div class="info-title">💡 操作提示</div>
+        🖱️ 点击色块区域查看土壤详情<br>
+        🔄 切换专题图自动定位到数据区<br>
+        🔍 可缩放和平移探索地图<br>
+        📌 本页面为静态展示版本
+    </div>
+
+    <div class="github-badge">
+        <a href="https://github.com" target="_blank">📦 GitHub Pages 静态版</a>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ===================== 地图配置 =====================
+        var map = L.map('map', { center: [26.0, 117.8], zoom: 7, zoomControl: false });
+        L.control.zoom({ position: 'topleft' }).addTo(map);
+        L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
+        // ===================== 底图 =====================
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap', maxZoom: 18
+        }).addTo(map);
+
+        // ===================== 图片图层 =====================
+        // 县区边界图片 (覆盖福建全省)
+        var xianquBounds = [[23.5, 115.5], [28.5, 120.5]];
+        var xianquLayer = L.imageOverlay('xianqu_boundary.png', xianquBounds, { opacity: 1, zIndex: 5 }).addTo(map);
+
+        // 有机质图片
+        var soilBounds = [[24.6, 116.5], [24.85, 116.7]];
+        var youjizhiLayer = L.imageOverlay('soil_youjizhi.png', soilBounds, { opacity: 0.85, zIndex: 3 }).addTo(map);
+
+        // pH图片
+        var phLayer = L.imageOverlay('soil_ph.png', soilBounds, { opacity: 0.85, zIndex: 3 });
+
+        // ===================== 视图配置 =====================
+        var viewConfigs = {
+            'youjizhi': { center: [24.73, 116.61], zoom: 11 },
+            'ph':       { center: [24.73, 116.61], zoom: 11 },
+            'base':     { center: [26.0, 117.8],   zoom: 7 }
+        };
+
+        var currentLayer = 'youjizhi';
+        var layerMap = { 'youjizhi': youjizhiLayer, 'ph': phLayer, 'base': null };
+
+        // ===================== 加载土壤 GeoJSON 用于点击查询 =====================
+        var soilGeoJSON = null;
+        fetch('soil_data.json')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                soilGeoJSON = data;
+            });
+
+        // ===================== 图例配置 =====================
+        var legendConfig = {
+            'youjizhi': {
+                title: '🟤 有机质含量 (g/kg)',
+                items: [
+                    { color: '#00BFBF', label: '缺乏 (<25.2)' },
+                    { color: '#AAFF00', label: '中等 (25.2 ~ 30.2)' },
+                    { color: '#E97F14', label: '丰富 (>30.2)' }
+                ]
+            },
+            'ph': {
+                title: '🔴 降雨pH 酸碱度',
+                items: [
+                    { color: '#d73027', label: '强酸性 (<5.5)' },
+                    { color: '#fc8d59', label: '酸性 (5.5 ~ 6.0)' },
+                    { color: '#fee08b', label: '弱酸性 (6.0 ~ 6.5)' },
+                    { color: '#91cf60', label: '中性 (≥6.5)' }
+                ]
+            },
+            'base': {
+                title: '🟢 行政区划',
+                items: [
+                    { color: '#0066CC', label: '县区边界线' },
+                    { color: '#003366', label: '县区名称标注' }
+                ]
+            }
+        };
+
+        // ===================== 切换图层 =====================
+        function switchLayer(type) {
+            // 移除专题图层
+            Object.keys(layerMap).forEach(function(key) {
+                if (layerMap[key] && map.hasLayer(layerMap[key])) {
+                    map.removeLayer(layerMap[key]);
+                }
+            });
+
+            // 添加新图层
+            if (layerMap[type]) {
+                map.addLayer(layerMap[type]);
+            }
+
+            // 飞到对应区域
+            var cfg = viewConfigs[type];
+            if (cfg) {
+                map.flyTo(cfg.center, cfg.zoom, { duration: 1.5, easeLinearity: 0.25 });
+            }
+
+            // 更新按钮
+            document.querySelectorAll('.layer-btn').forEach(function(btn) { btn.classList.remove('active'); });
+            document.getElementById('btn-' + type).classList.add('active');
+
+            // 更新图例
+            updateLegend(type);
+            showZoomHint();
+            currentLayer = type;
+        }
+
+        function updateLegend(type) {
+            var cfg = legendConfig[type];
+            document.getElementById('legendTitle').textContent = cfg.title;
+            var html = '';
+            cfg.items.forEach(function(item) {
+                html += '<div class="legend-item"><div class="legend-color" style="background:' + item.color + '"></div><span>' + item.label + '</span></div>';
+            });
+            document.getElementById('legendBody').innerHTML = html;
+        }
+
+        function showZoomHint() {
+            var hint = document.getElementById('zoomHint');
+            hint.classList.add('show');
+            setTimeout(function() { hint.classList.remove('show'); }, 2000);
+        }
+
+        // ===================== 坐标显示 =====================
+        map.on('mousemove', function(e) {
+            document.getElementById('coordDisplay').textContent =
+                '经度: ' + e.latlng.lng.toFixed(4) + '  纬度: ' + e.latlng.lat.toFixed(4);
+        });
+
+        // ===================== 点击查询 =====================
+        map.on('click', function(e) {
+            if (currentLayer === 'base' || !soilGeoJSON) return;
+
+            var clickLat = e.latlng.lat;
+            var clickLng = e.latlng.lng;
+            var minDist = Infinity;
+            var nearest = null;
+
+            soilGeoJSON.features.forEach(function(f) {
+                if (!f.geometry || !f.geometry.coordinates) return;
+                // Get centroid of the polygon
+                var coords = f.geometry.coordinates;
+                var flat = coords.flat(Infinity);
+                var cx = 0, cy = 0, n = 0;
+                for (var i = 0; i < flat.length; i += 2) {
+                    cx += flat[i]; cy += flat[i + 1]; n++;
+                }
+                cx /= n; cy /= n;
+                var dist = Math.sqrt(Math.pow(clickLng - cx, 2) + Math.pow(clickLat - cy, 2));
+                if (dist < minDist) { minDist = dist; nearest = f; }
+            });
+
+            if (nearest && minDist < 0.05) {
+                var p = nearest.properties;
+                var html = '<div class="popup-content">';
+                html += '<div class="popup-title">📍 ' + (p['县名称'] || '') + ' · ' + (p['乡名称'] || '') + '</div>';
+                var rows = [
+                    ['有机质', p['有机质'], 'g/kg'],
+                    ['降雨pH', p['降雨pH'], ''],
+                    ['碱解氮', p['碱解氮'], 'mg/kg'],
+                    ['有效磷', p['有效磷'], 'mg/kg'],
+                    ['速效钾', p['速效钾'], 'mg/kg'],
+                    ['海拔', p['海拔'], 'm'],
+                    ['地貌', p['地貌'], '']
+                ];
+                rows.forEach(function(r) {
+                    if (r[1] === null || r[1] === undefined) return;
+                    var val = typeof r[1] === 'number' ? r[1].toFixed(2) : r[1];
+                    html += '<div class="popup-row"><span class="label">' + r[0] + '</span><span class="value">' + val + (r[2] ? ' ' + r[2] : '') + '</span></div>';
+                });
+                html += '</div>';
+                L.popup({ maxWidth: 280 }).setLatLng(e.latlng).setContent(html).openOn(map);
+            }
+        });
+
+        // ===================== 初始化 =====================
+        updateLegend('youjizhi');
+        showZoomHint();
+    </script>
+</body>
+</html>
