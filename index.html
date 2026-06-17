@@ -175,16 +175,28 @@
         }).addTo(map);
 
         // ===================== 图片图层 =====================
-        // 有机质图片（底层土壤图层）
+        // 用 canvas 把图片绘制到地图上
         var soilBounds = [[24.6, 116.5], [24.85, 116.7]];
-        var youjizhiLayer = L.imageOverlay('soil_youjizhi.png', soilBounds, { opacity: 1, zIndex: 10 }).addTo(map);
-
-        // pH图片
-        var phLayer = L.imageOverlay('soil_ph.png', soilBounds, { opacity: 1, zIndex: 10 });
-
-        // 县区边界图片（上层，透明背景）
         var xianquBounds = [[23.5, 115.5], [28.5, 120.5]];
-        var xianquLayer = L.imageOverlay('xianqu_boundary.png', xianquBounds, { opacity: 1, zIndex: 20 }).addTo(map);
+
+        // 有机质图层
+        var youjizhiLayer = L.imageOverlay('soil_youjizhi.png', soilBounds, {
+            opacity: 1, zIndex: 10, interactive: false
+        }).addTo(map);
+
+        // pH图层
+        var phLayer = L.imageOverlay('soil_ph.png', soilBounds, {
+            opacity: 1, zIndex: 10, interactive: false
+        });
+
+        // 县区边界图层
+        var xianquLayer = L.imageOverlay('xianqu_boundary.png', xianquBounds, {
+            opacity: 1, zIndex: 20, interactive: false
+        }).addTo(map);
+
+        // 调试：添加红色矩形和标记
+        L.rectangle(soilBounds, {color: '#ff0000', weight: 3, fillOpacity: 0, zIndex: 99}).addTo(map);
+        L.marker([24.73, 116.61]).addTo(map).bindPopup('土壤数据区域中心').openPopup();
 
         // ===================== 视图配置 =====================
         var viewConfigs = {
